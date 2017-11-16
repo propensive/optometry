@@ -74,17 +74,17 @@ object Test extends TestApp {
       getLines(employee())
     }.assert(_ == List("648 East Avenue", "Newtown"))
     
-    test("apply a list lens with a profunctor in the middle") {
+    test("apply a list lens with an optic in the middle") {
       val getAges = Lens[Company](_.employees(each).person.age)
       getAges(company())
     }.assert(_ == List(29, 54))
     
-    test("combine two profunctors") {
+    test("combine two optics") {
       val getAges = Lens[Directory](_.companies(each).employees(each).person.age)
       getAges(directory())
     }.assert(_ == List(List(29, 54), List(27, 44, 48)))
     
-    test("combine two different profunctors") {
+    test("combine two different optics") {
       val getPostcodes = Lens[Company](_.employees(each).person.address.postcode(option))
       getPostcodes(company())
     }.assert(_ == List(Some("84792"), None))
@@ -94,20 +94,16 @@ object Test extends TestApp {
       postcodeLens(person().address) = Some("12345")
     }.assert(_ == Address(List("648 East Avenue", "Newtown"), Some("12345"), "USA"))
     
-    test("profunctor lens has correct type") {
+    test("optic lens has correct type") {
       scalac"Lens[Address](_.postcode(option))"
     }.assert(_ == Returns(fqt"optometry.Lens[optometry.Test.Address,String,Option[String]]"))
     
-    test("simple profunctor lens update") {
+    test("simple optic lens update") {
       val postcodeLens = Lens[Address](_.postcode(option))
       postcodeLens(person().address) = "12345"
     }.assert(_ == Address(List("648 East Avenue", "Newtown"), Some("12345"), "USA"))
     
-    test("simple profunctor lens update") {
-      val postcodeLens = Lens[Address](_.postcode(option))
-      postcodeLens(person().address) = "12345"
-    }.assert(_ == Address(List("648 East Avenue", "Newtown"), Some("12345"), "USA"))
-    
+    ()
   }
 
 }
