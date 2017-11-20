@@ -13,12 +13,12 @@ object LensMacros {
       case q"$prefix($c)" =>
         c match {
           case Literal(Constant(str: String)) =>
-            (str, q"_root_.optometry.Profunctor.identity") :: deconstruct(prefix)
+            (str, q"_root_.optometry.Optic.identity") :: deconstruct(prefix)
         }
       case q"$prefix.$method" if method.decodedName.toString == "selectDynamic" =>
         deconstruct(prefix)
-      case q"$prefix.$method[$_, $_](${Literal(Constant(name: String))})($profunctor)" if method.decodedName.toString == "applyDynamic" =>
-        (name, profunctor) :: deconstruct(prefix)
+      case q"$prefix.$method[$_, $_](${Literal(Constant(name: String))})($optic)" if method.decodedName.toString == "applyDynamic" =>
+        (name, optic) :: deconstruct(prefix)
       case other =>
         Nil
     }
@@ -36,23 +36,23 @@ object LensMacros {
       }
     }
 
-    def unify(profunctor: c.Tree, typ: Type): Type =
-      c.typecheck(q"$profunctor.unify(null.asInstanceOf[$typ])") match {
+    def unify(optic: c.Tree, typ: Type): Type =
+      c.typecheck(q"$optic.unify(null.asInstanceOf[$typ])") match {
         case q"$prefix[$t]($x)" => c.untypecheck(t).tpe
       }
 
     def join(dec: List[(String, c.Tree)], typ: Type): c.Tree = dec match {
-      case (method, profunctor) :: Nil =>
+      case (method, optic) :: Nil =>
         val res = dereference(method, typ)
         val lens = lensTree(typ, res.returnType, method)
-        q"$profunctor($lens)"
+        q"$optic($lens)"
         
-      case (method, profunctor) :: tail =>
+      case (method, optic) :: tail =>
         val res = dereference(method, typ)
         val lens = lensTree(typ, res.returnType, method)
-        val nextType = unify(profunctor, res.returnType)
+        val nextType = unify(optic, res.returnType)
         val joined = join(tail, nextType)
-        q"$profunctor.compose($lens, $joined)"
+        q"$optic.compose($lens, $joined)"
       
       case Nil =>
         ???

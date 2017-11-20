@@ -10,14 +10,14 @@ final class Lens[A, B, B2](get: A => B2, set: (A, B => B) => A) {
   def modify(a: A)(b: B => B): A = set(a, b)
 }
 
-abstract class Profunctor[F[_], G[_]](name: String) {
+abstract class Optic[F[_], G[_]](name: String) {
 
-  /** defines how the profunctor should map across the values */
+  /** defines how the optic should map across the values */
   def map[A, B](v: F[A])(fn: A => B): G[B]
   
   def comap[A](f: F[A], g: G[A]): F[A] 
 
-  /** maps this profunctor to the lens */
+  /** maps this optic to the lens */
   def apply[A, B](lens: Lens[A, F[B], F[B]]): Lens[A, B, G[B]] = new Lens[A, B, G[B]](
     { a => map(lens(a))(identity) },
     { (a, b) =>
@@ -26,7 +26,7 @@ abstract class Profunctor[F[_], G[_]](name: String) {
     }
   )
  
-  /** combines two lenses using this profunctor */
+  /** combines two lenses using this optic */
   def compose[A, B, C, C2](left: Lens[A, F[B], F[B]], right: Lens[B, C, C2]): Lens[A, C, G[C2]] = {
     new Lens[A, C, G[C2]](
       { a => map(left(a))(right.apply) },
@@ -41,25 +41,25 @@ abstract class Profunctor[F[_], G[_]](name: String) {
   def unify[T](x: F[T]): Nothing = ???
 }
 
-object Profunctor {
+object Optic {
 
-  object identity extends Profunctor[({ type L[T] = T })#L, ({ type L[T] = T })#L]("") {
+  object identity extends Optic[({ type L[T] = T })#L, ({ type L[T] = T })#L]("") {
     def map[A, B](v: A)(fn: A => B): B = fn(v)
     def comap[A](f: A, g: A): A = g
   }
 }
 
-object each extends Profunctor[List, List]("each") {
+object each extends Optic[List, List]("each") {
   def map[A, B](v: List[A])(fn: A => B): List[B] = v.map(fn)
   def comap[A](f: List[A], g: List[A]): List[A] = g
 }
 
-object option extends Profunctor[Option, Option]("option") {
+object option extends Optic[Option, Option]("option") {
   def map[A, B](v: Option[A])(fn: A => B): Option[B] = v.map(fn)
   def comap[A](f: Option[A], g: Option[A]): Option[A] = g
 }
 
-object headOption extends Profunctor[List, Option]("option") {
+object headOption extends Optic[List, Option]("option") {
   def map[A, B](v: List[A])(fn: A => B): Option[B] = v.headOption.map(fn)
   def comap[A](f: List[A], g: Option[A]): List[A] = f match {
     case Nil => Nil
@@ -77,6 +77,6 @@ object Lens {
 
   private class Dyn extends Dynamic {
     def selectDynamic(name: String): Dyn = ???
-    def applyDynamic[Fn[_], Fn2[_]](name: String)(app: Profunctor[Fn, Fn2]): Dyn = ???
+    def applyDynamic[Fn[_], Fn2[_]](name: String)(app: Optic[Fn, Fn2]): Dyn = ???
   }
 }
