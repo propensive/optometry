@@ -103,6 +103,19 @@ object Test extends TestApp {
       postcodeLens(person().address) = "12345"
     }.assert(_ == Address(List("648 East Avenue", "Newtown"), Some("12345"), "USA"))
     
+    test("headOption lens getter") {
+      val firstEmployee = Lens[Company](_.employees(headOption).person.name)
+      firstEmployee(directory().companies.head)
+    }.assert(_ == Some("Richard Jones"))
+    
+    test("headOption lens setter") {
+      val firstEmployee = Lens[Company](_.employees(headOption).person.name)
+      firstEmployee.modify(directory().companies.head) { s => s+" PhD" }
+    }.assert { r =>
+      r.employees(0).person.name == "Richard Jones PhD" &&
+          r.employees(1).person.name == "John Smith"
+    }
+    
     ()
   }
 
