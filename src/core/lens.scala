@@ -25,7 +25,7 @@ abstract class Optic[F[_], G[_]](name: String) {
       lens(a) = comap(la, map(la)(b))
     }
   )
- 
+
   /** combines two lenses using this optic */
   def compose[A, B, C, C2](left: Lens[A, F[B], F[B]], right: Lens[B, C, C2]): Lens[A, C, G[C2]] = {
     new Lens[A, C, G[C2]](
@@ -67,12 +67,37 @@ object headOption extends Optic[List, Option]("option") {
   }
 }
 
+object one {
+  
+  type Id[T] = T
+  
+  def apply(pred: Any => Boolean): Optic[List, Id] =
+    new Optic[List, Id]("focus") {
+      def map[A, B](v: List[A])(fn: A => B): B = fn(v.find(pred).get)
+      def comap[A](f: List[A], g: A): List[A] = {
+        val idx = f.indexWhere(pred)
+        f.take(idx) ::: (g :: f.drop(idx + 1))
+      }
+    }
+}
+object focus {
+  def apply(pred: Any => Boolean): Optic[List, Option] =
+    new Optic[List, Option]("focus") {
+      def map[A, B](v: List[A])(fn: A => B): Option[B] = v.find(pred).map(fn)
+      def comap[A](f: List[A], g: Option[A]): List[A] = {
+        val idx = f.indexWhere(pred)
+        f.take(idx) ::: g.to[List] ::: f.drop(idx + 1)
+      }
+    }
+}
+
 object Lens {
 
-  def apply[A]: PartialLens[A] = new PartialLens[A](0)
+  def apply[A]: Partial[A] = new Partial[A]()
 
-  final class PartialLens[A](private val nothing: Int) extends AnyVal {
+  class Partial[A]() {
     def apply[B](path: Dyn => Dyn): Any = macro LensMacros.construct[A]
+    def lens[B](path: Dyn => Dyn): Any = macro LensMacros.construct[A]
   }
 
   private class Dyn extends Dynamic {
@@ -80,3 +105,33 @@ object Lens {
     def applyDynamic[Fn[_], Fn2[_]](name: String)(app: Optic[Fn, Fn2]): Dyn = ???
   }
 }
+
+
+/*
+object Testing {
+
+  type Getter[S, A] = S => A
+  type Setter[S, T, A, B] = (A => B) => (S => T)
+
+  type Lens[S, T, A, B, F[_]] = (A => F[B]) => (S => F[T])
+
+  def mkLens[S, T, A, B, F[_]: Functor](get: S => A, set: (A => B) => (S => T)): Lens[S, T, A, B, F] = {
+    (f: (A => F[B])) => s => implicitly[Functor[F]].map(f(get(s))) { b =>
+      set(_ => b)(s)
+    }
+  }
+
+  def get[S, A, F[_]](s: S)(lens: Lens[S, S, A, A, F]): A = {
+    lens(a => Const[A, A](a))(s).a
+  }
+
+  def modify[S, A](s: S, fn: A => A)(lens: Lens[S, S, A, A, F]): S = {
+    lens(a => a)(s)
+  }
+
+  type Id[A] = A
+ 
+  case class Const[A, B](a: A)
+
+}
+*/

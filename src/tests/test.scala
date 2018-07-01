@@ -1,13 +1,18 @@
 package optometry
 
-import estrapade._
+import probation._
 import contextual.data.fqt._
 import contextual.data.scalac._
 
 object Test extends TestApp {
- 
+
+  sealed trait Pet
+  case class Dog(breed: String, color: String) extends Pet
+  case class Cat(color: String) extends Pet
+  case object NoPet extends Pet
+
   case class Address(lines: List[String], postcode: Option[String], country: String)
-  case class Person(name: String, address: Address, age: Int)
+  case class Person(name: String, address: Address, age: Int, pet: Pet)
   case class Employee(person: Person, role: String)
   case class Company(name: String, employees: List[Employee])
   case class Directory(companies: List[Company])
@@ -19,21 +24,21 @@ object Test extends TestApp {
         Company("Acme Inc", List(
           Employee(Person("Richard Jones", Address(
             List("648 East Avenue", "Newtown"), Some("84792"), "USA"
-          ), 29), "CFO"),
+          ), 29, Cat("white")), "CFO"),
           Employee(Person("John Smith", Address(
             List("1 High Street", "Townville"), None, "USA"
-          ), 54), "CEO")
+          ), 54, NoPet), "CEO")
         )),
         Company("International Widgets Corp", List(
           Employee(Person("Michael O'Sullivan", Address(
             List("41 South Road", "Dublin"), None, "Ireland"
-          ), 27), "Managing Director"),
+          ), 27, NoPet), "Managing Director"),
           Employee(Person("David Jackson", Address(
             List("388 Bellevue Street", "Cork"), None, "Ireland"
-          ), 44), "Technical Director"),
+          ), 44, NoPet), "Technical Director"),
           Employee(Person("James Murphy", Address(
             List("7 North Street", "Dublin"), None, "Ireland"
-          ), 48), "Human Resources Director")
+          ), 48, Dog("labrador", "black")), "Human Resources Director")
         ))
       ))
     }.returns()
@@ -115,7 +120,16 @@ object Test extends TestApp {
       r.employees(0).person.name == "Richard Jones PhD" &&
           r.employees(1).person.name == "John Smith"
     }
-    
+  /*
+    test("functor over coproduct") {
+      val employeePetColors = Lens[Employee](_.person.pet(when(
+        on[NoPet] { p => "none" },
+        on[Dog] { d => _.color },
+        on[Cat] { _.color }
+      )))
+      employeePetColors(employee())
+    }
+*/
     ()
   }
 
