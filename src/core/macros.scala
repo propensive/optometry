@@ -17,7 +17,7 @@ object LensMacros {
         }
       case q"$prefix.$method" if method.decodedName.toString == "selectDynamic" =>
         deconstruct(prefix)
-      case q"$prefix.$method[$_, $_](${Literal(Constant(name: String))})($optic)" if method.decodedName.toString == "applyDynamic" =>
+      case q"$prefix.$method[$_, $_, $_](${Literal(Constant(name: String))})($optic)" if method.decodedName.toString == "applyDynamic" =>
         (name, optic) :: deconstruct(prefix)
       case other =>
         Nil

@@ -10,15 +10,15 @@ final class Lens[A, B, B2](get: A => B2, set: (A, B => B) => A) {
   def modify(a: A)(b: B => B): A = set(a, b)
 }
 
-abstract class Optic[F[_], G[_]](name: String) {
+abstract class Optic[F[_], G[_], A](name: String) {
 
   /** defines how the optic should map across the values */
-  def map[A, B](v: F[A])(fn: A => B): G[B]
+  def map[B](v: F[A])(fn: A => B): G[B]
   
-  def comap[A](f: F[A], g: G[A]): F[A] 
+  def comap(f: F[A], g: G[A]): F[A] 
 
   /** maps this optic to the lens */
-  def apply[A, B](lens: Lens[A, F[B], F[B]]): Lens[A, B, G[B]] = new Lens[A, B, G[B]](
+  def apply[B](lens: Lens[B, F[A], F[A]]): Lens[B, A, G[A]] = new Lens[B, A, G[A]](
     { a => map(lens(a))(identity) },
     { (a, b) =>
       val la = lens(a)
@@ -27,8 +27,8 @@ abstract class Optic[F[_], G[_]](name: String) {
   )
 
   /** combines two lenses using this optic */
-  def compose[A, B, C, C2](left: Lens[A, F[B], F[B]], right: Lens[B, C, C2]): Lens[A, C, G[C2]] = {
-    new Lens[A, C, G[C2]](
+  def compose[B, C, C2](left: Lens[B, F[A], F[A]], right: Lens[A, C, C2]): Lens[B, C, G[C2]] = {
+    new Lens[B, C, G[C2]](
       { a => map(left(a))(right.apply) },
       { (a, c) =>
         val la = left(a)
@@ -43,27 +43,33 @@ abstract class Optic[F[_], G[_]](name: String) {
 
 object Optic {
 
-  object identity extends Optic[({ type L[T] = T })#L, ({ type L[T] = T })#L]("") {
-    def map[A, B](v: A)(fn: A => B): B = fn(v)
-    def comap[A](f: A, g: A): A = g
+  def identity[A] = new Optic[({ type L[T] = T })#L, ({ type L[T] = T })#L, A]("") {
+    def map[B](v: A)(fn: A => B): B = fn(v)
+    def comap(f: A, g: A): A = g
   }
 }
 
-object each extends Optic[List, List]("each") {
-  def map[A, B](v: List[A])(fn: A => B): List[B] = v.map(fn)
-  def comap[A](f: List[A], g: List[A]): List[A] = g
+object each {
+  def apply[A] = new Optic[List, List, A]("each") {
+    def map[B](v: List[A])(fn: A => B): List[B] = v.map(fn)
+    def comap(f: List[A], g: List[A]): List[A] = g
+  }
 }
 
-object option extends Optic[Option, Option]("option") {
-  def map[A, B](v: Option[A])(fn: A => B): Option[B] = v.map(fn)
-  def comap[A](f: Option[A], g: Option[A]): Option[A] = g
+object option {
+  def apply[A] = new Optic[Option, Option, A]("option") {
+    def map[B](v: Option[A])(fn: A => B): Option[B] = v.map(fn)
+    def comap(f: Option[A], g: Option[A]): Option[A] = g
+  }
 }
 
-object headOption extends Optic[List, Option]("option") {
-  def map[A, B](v: List[A])(fn: A => B): Option[B] = v.headOption.map(fn)
-  def comap[A](f: List[A], g: Option[A]): List[A] = f match {
-    case Nil => Nil
-    case h :: t => g.to[List] ::: t
+object headOption {
+  def apply[A] = new Optic[List, Option, A]("option") {
+    def map[B](v: List[A])(fn: A => B): Option[B] = v.headOption.map(fn)
+    def comap(f: List[A], g: Option[A]): List[A] = f match {
+      case Nil => Nil
+      case h :: t => g.to[List] ::: t
+    }
   }
 }
 
@@ -71,20 +77,20 @@ object one {
   
   type Id[T] = T
   
-  def apply(pred: Any => Boolean): Optic[List, Id] =
-    new Optic[List, Id]("focus") {
-      def map[A, B](v: List[A])(fn: A => B): B = fn(v.find(pred).get)
-      def comap[A](f: List[A], g: A): List[A] = {
+  def apply[A](pred: A => Boolean): Optic[List, Id, A] =
+    new Optic[List, Id, A]("focus") {
+      def map[B](v: List[A])(fn: A => B): B = fn(v.find(pred).get)
+      def comap(f: List[A], g: A): List[A] = {
         val idx = f.indexWhere(pred)
         f.take(idx) ::: (g :: f.drop(idx + 1))
       }
     }
 }
 object focus {
-  def apply(pred: Any => Boolean): Optic[List, Option] =
-    new Optic[List, Option]("focus") {
-      def map[A, B](v: List[A])(fn: A => B): Option[B] = v.find(pred).map(fn)
-      def comap[A](f: List[A], g: Option[A]): List[A] = {
+  def apply[A](pred: A => Boolean): Optic[List, Option, A] =
+    new Optic[List, Option, A]("focus") {
+      def map[B](v: List[A])(fn: A => B): Option[B] = v.find(pred).map(fn)
+      def comap(f: List[A], g: Option[A]): List[A] = {
         val idx = f.indexWhere(pred)
         f.take(idx) ::: g.to[List] ::: f.drop(idx + 1)
       }
@@ -102,7 +108,7 @@ object Lens {
 
   private class Dyn extends Dynamic {
     def selectDynamic(name: String): Dyn = ???
-    def applyDynamic[Fn[_], Fn2[_]](name: String)(app: Optic[Fn, Fn2]): Dyn = ???
+    def applyDynamic[Fn[_], Fn2[_], A](name: String)(app: Optic[Fn, Fn2, A]): Dyn = ???
   }
 }
 
