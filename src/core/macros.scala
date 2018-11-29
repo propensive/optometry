@@ -1,8 +1,5 @@
 package optometry
 
-import language.higherKinds
-
-import scala.reflect._
 import scala.reflect.macros._
 
 object LensMacros {
@@ -10,10 +7,10 @@ object LensMacros {
     import c.universe._
 
     def deconstruct(path: c.Tree): List[(String, c.Tree)] = path match {
-      case q"$prefix($c)" =>
-        c match {
+      case q"$prefix($p)" =>
+        p match {
           case Literal(Constant(str: String)) =>
-            (str, q"_root_.optometry.Optic.identity") :: deconstruct(prefix)
+            (str, c.typecheck(q"_root_.optometry.Optic.identity")) :: deconstruct(prefix)
         }
       case q"$prefix.$method" if method.decodedName.toString == "selectDynamic" =>
         deconstruct(prefix)
@@ -41,11 +38,24 @@ object LensMacros {
         case q"$prefix[$t]($x)" => c.untypecheck(t).tpe
       }
 
+    val OpticType = typeOf[Optic[Any, Any, Any]].typeConstructor
+
+    def retype(optic: c.Tree, newType: Type): Type = {
+      optic.tpe.baseClasses.find { baseType =>
+        baseType.asType.toType.typeConstructor =:= OpticType
+      }.map { tpe =>
+        val newTypeParams = optic.tpe.baseType(tpe).typeArgs.take(2) :+ newType
+        appliedType(OpticType, newTypeParams)
+      }.get
+    }
+
     def join(dec: List[(String, c.Tree)], typ: Type): c.Tree = dec match {
       case (method, optic) :: Nil =>
         val res = dereference(method, typ)
         val lens = lensTree(typ, res.returnType, method)
-        q"$optic($lens)"
+        val retyped = retype(optic, unify(optic, res.returnType))
+        //c.info(c.enclosingPosition, retyped.toString, true)
+        q"($optic.asInstanceOf[$retyped])($lens)"
         
       case (method, optic) :: tail =>
         val res = dereference(method, typ)

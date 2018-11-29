@@ -17,6 +17,8 @@ object Test extends TestApp {
   case class Company(name: String, employees: List[Employee])
   case class Directory(companies: List[Company])
 
+  import optics._
+
   def tests() = {
 
     val directory = test("construct a data value") {
@@ -43,7 +45,7 @@ object Test extends TestApp {
       ))
     }.returns()
 
-    val employee = test("extract a single employe") {
+    val employee = test("extract a single employee") {
       directory().companies.head.employees.head
     }.returns()
 
@@ -100,21 +102,21 @@ object Test extends TestApp {
     }.assert(_ == Address(List("648 East Avenue", "Newtown"), Some("12345"), "USA"))
     
     test("optic lens has correct type") {
-      scalac"Lens[Address](_.postcode(option))"
+      scalac"Lens[Address](_.postcode(option[String]))"
     }.assert(_ == Returns(fqt"optometry.Lens[optometry.Test.Address,String,Option[String]]"))
     
     test("simple optic lens update") {
-      val postcodeLens = Lens[Address](_.postcode(option))
+      val postcodeLens = Lens[Address](_.postcode(option[String]))
       postcodeLens(person().address) = "12345"
     }.assert(_ == Address(List("648 East Avenue", "Newtown"), Some("12345"), "USA"))
     
     test("headOption lens getter") {
-      val firstEmployee = Lens[Company](_.employees(headOption).person.name)
+      val firstEmployee = Lens[Company](_.employees(headOption[Employee]).person.name)
       firstEmployee(directory().companies.head)
     }.assert(_ == Some("Richard Jones"))
     
     test("headOption lens setter") {
-      val firstEmployee = Lens[Company](_.employees(headOption).person.name)
+      val firstEmployee = Lens[Company](_.employees(headOption[Employee]).person.name)
       firstEmployee.modify(directory().companies.head) { s => s+" PhD" }
     }.assert { r =>
       r.employees(0).person.name == "Richard Jones PhD" &&
