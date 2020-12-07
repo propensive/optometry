@@ -1,10 +1,10 @@
 package optometry
 
-import probation._
-import contextual.data.fqt._
-import contextual.data.scalac._
+import probably._
+import contextual.examples.fqt._
+import contextual.examples.scalac._
 
-object Test extends TestApp {
+object Test extends Suite("Optometry tests") {
 
   sealed trait Pet
   case class Dog(breed: String, color: String) extends Pet
@@ -19,7 +19,7 @@ object Test extends TestApp {
 
   import optics._
 
-  def tests() = {
+  def run(test: Runner) = {
 
     val directory = test("construct a data value") {
       Directory(List(
@@ -43,19 +43,19 @@ object Test extends TestApp {
           ), 48, Dog("labrador", "black")), "Human Resources Director")
         ))
       ))
-    }.returns()
+    }.check(_ => true)
 
     val employee = test("extract a single employee") {
-      directory().companies.head.employees.head
-    }.returns()
+      directory.companies.head.employees.head
+    }.check(_ => true)
 
     val person = test("extract a single person") {
-      employee().person
-    }.returns()
+      employee.person
+    }.check(_ => true)
 
     val company = test("extract a single company") {
-      directory().companies.head
-    }.returns()
+      directory.companies.head
+    }.check(_ => true)
 
     test("construct simple lens") {
       scalac"Lens[Person](_.name)"
@@ -63,42 +63,42 @@ object Test extends TestApp {
 
     test("apply a simple lens") {
       val nameLens = Lens[Person](_.name)
-      nameLens(person())
+      nameLens(person)
     }.assert(_ == "Richard Jones")
     
     test("apply a list lens") {
       val getLines = Lens[Address](_.lines(each))
-      getLines(person().address)
+      getLines(person.address)
     }.assert(_ == List("648 East Avenue", "Newtown"))
     
     test("apply a list lens two levels deep") {
       val getLines = Lens[Person](_.address.lines(each))
-      getLines(person())
+      getLines(person)
     }.assert(_ == List("648 East Avenue", "Newtown"))
     
     test("apply a list lens three levels deep") {
       val getLines = Lens[Employee](_.person.address.lines(each))
-      getLines(employee())
+      getLines(employee)
     }.assert(_ == List("648 East Avenue", "Newtown"))
     
     test("apply a list lens with an optic in the middle") {
       val getAges = Lens[Company](_.employees(each).person.age)
-      getAges(company())
+      getAges(company)
     }.assert(_ == List(29, 54))
     
     test("combine two optics") {
       val getAges = Lens[Directory](_.companies(each).employees(each).person.age)
-      getAges(directory())
+      getAges(directory)
     }.assert(_ == List(List(29, 54), List(27, 44, 48)))
     
     test("combine two different optics") {
       val getPostcodes = Lens[Company](_.employees(each).person.address.postcode(option))
-      getPostcodes(company())
+      getPostcodes(company)
     }.assert(_ == List(Some("84792"), None))
     
     test("simple lens update") {
       val postcodeLens = Lens[Address](_.postcode)
-      postcodeLens(person().address) = Some("12345")
+      postcodeLens(person.address) = Some("12345")
     }.assert(_ == Address(List("648 East Avenue", "Newtown"), Some("12345"), "USA"))
     
     test("optic lens has correct type") {
@@ -107,17 +107,17 @@ object Test extends TestApp {
     
     test("simple optic lens update") {
       val postcodeLens = Lens[Address](_.postcode(option[String]))
-      postcodeLens(person().address) = "12345"
+      postcodeLens(person.address) = "12345"
     }.assert(_ == Address(List("648 East Avenue", "Newtown"), Some("12345"), "USA"))
     
     test("headOption lens getter") {
       val firstEmployee = Lens[Company](_.employees(headOption[Employee]).person.name)
-      firstEmployee(directory().companies.head)
+      firstEmployee(directory.companies.head)
     }.assert(_ == Some("Richard Jones"))
     
     test("headOption lens setter") {
       val firstEmployee = Lens[Company](_.employees(headOption[Employee]).person.name)
-      firstEmployee.modify(directory().companies.head) { s => s+" PhD" }
+      firstEmployee.modify(directory.companies.head) { s => s+" PhD" }
     }.assert { r =>
       r.employees(0).person.name == "Richard Jones PhD" &&
           r.employees(1).person.name == "John Smith"
@@ -129,11 +129,9 @@ object Test extends TestApp {
         on[Dog] { d => _.color },
         on[Cat] { _.color }
       )))
-      employeePetColors(employee())
+      employeePetColors(employee)
     }
 */
-    ()
   }
-
 }
 
